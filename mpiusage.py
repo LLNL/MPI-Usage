@@ -61,8 +61,10 @@ fmpi_call_re = re.compile(r"(?P<call>^[\s]*(call|CALL)[\s]+)"
 # Max size of an MPI Call in terms of lines
 maxBufferSize = 10
 
-outputFileName = "output.json"
+#### Control variables ####
+outputFileName = None
 inputPath = "./"
+verbose = False
 
 ###############################################################################
 # Main
@@ -72,7 +74,7 @@ def main():
     parseArgs()
     #input = sys.argv[1]
     input = inputPath
-    print "Analyzing", input, "..."
+    printOut(["Analyzing", input, "..."])
     
     # Check if input exist
     if os.path.exists(input):
@@ -83,12 +85,10 @@ def main():
             # This loop traverses the entire directory tree
             rootDir = input
             for dirName, subdirList, fileList in os.walk(rootDir):
-                #print('Found directory: %s' % dirName)
                 for fname in fileList:
-                    #print('\t%s' % fname)
                     # Full path of the file
                     filePath = dirName + "/" + fname
-                    print filePath
+                    printOut([filePath])
                     analyzeFile(filePath)
         
         else: ## this is a file
@@ -106,21 +106,28 @@ def main():
 ###############################################################################
 
 def parseArgs():
-    global inputPath, outputFileName
+    global inputPath, outputFileName, verbose
     
     parser = argparse.ArgumentParser()
     parser.add_argument("path", type=str,
                         help="file or directory to analyze")
     parser.add_argument("-o", "--output", help="name of output file", type=str)
+    parser.add_argument("-v", "--verbose", help="print what the script does", action="store_true")
     args = parser.parse_args()
 
     inputPath = args.path
-    #print "inputPath", inputPath
 
     if args.output:
         outputFileName = args.output
-        #print "output", args.output
+    if args.verbose:
+        verbose = True
 
+# Wrapper of print function
+# out: a list of strings, e.g., ["hello", "world"]
+def printOut(outList):
+    global verbose
+    if verbose:
+        print " ".join(outList)
 
 # This is the main function to analyze a file
 def analyzeFile(filePath):
@@ -129,7 +136,6 @@ def analyzeFile(filePath):
     for i in range(len(fileLines)):
         name = matchMPIName(fileLines[i])
         if name != None:
-            #print name
             # We know this is an MPI name.
             # Now let's try to match a function call.
             n = 0
@@ -138,8 +144,7 @@ def analyzeFile(filePath):
                 mpi_call = matchMPICall(longLine)
                 if mpi_call != None:
                     # We found an MPI call
-                    print "Call:", mpi_call+"()", "@ line", i+1
-                    #print longLine
+                    printOut(["Call:", mpi_call+"()", "@ line", str(i+1)])
                     
                     # Increase count in table
                     # We store MPI call names in upper case
@@ -183,7 +188,6 @@ def matchMPIName(line):
 
 # This matches an MPI call of the form: "MPI_Bcast(a, b, c,...);"
 def matchMPICall(line):
-    #print "Matching line:", line
     
     # Matching for C/C++ calls
     result1 = mpi_call_re.search(line)
@@ -205,19 +209,27 @@ def matchMPICall(line):
 
     return mpi_call
 
+# Print results to stdout
 def printResults():
-    print "*** Results ***"
-    fd = open(outputFileName, 'w')
-    fd.write("{\n")
-    print "{"
+    printOut(["*** MPI Usage ***"])
+    
+    # We save output into a string first
+    out = "{\n"
     for k in MPI_CALLS_TABLE.keys():
-        line = "  " + "\"" + k + "\"" + ": " + str(MPI_CALLS_TABLE[k]) + ","
-        print line
-        fd.write(line + "\n")
-        
-    print "}"
-    fd.write("}\n")
+        line = "  " + "\"" + k + "\"" + ": " + str(MPI_CALLS_TABLE[k]) + ",\n"
+        out = out + line    
+    out = out + "}"
+    
+    print out
+    if outputFileName != None:
+        saveResults(out)
+
+# Save results into a file
+def saveResults(out):
+    fd = open(outputFileName, 'w')
+    fd.write(out)
     fd.close()
+
 
 ###############################################################################
 

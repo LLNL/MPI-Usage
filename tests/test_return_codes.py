@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-import os
+import subprocess
 
 def main():
     print "Testing return values in C/C++..."
-    file = "../code_examples/MPI/C_C++/return_values.c"
-    cmd = "../mpiusage.py " + file + " -o " + "test.json"
-    os.system(cmd)
+    inputFile = "../code_examples/MPI/C_C++/return_values.c"
+    cmd = ["../mpiusage.py", inputFile, "-o", "test.json"]
+    cmdOutput = subprocess.check_output(cmd)
+    
 
 main()
