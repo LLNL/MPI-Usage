@@ -51,16 +51,29 @@ def main():
     input = sys.argv[1]
     print "Analyzing", input, "..."
     
-    # This loop traverses the entire directory tree
-    rootDir = input
-    for dirName, subdirList, fileList in os.walk(rootDir):
-        #print('Found directory: %s' % dirName)
-        for fname in fileList:
-            #print('\t%s' % fname)
-            # Full path of the file
-            filePath = dirName + "/" + fname
-            print filePath
-            analyzeFile(filePath)
+    # Check if input exist
+    if os.path.exists(input):
+        
+        # Traver tree if input is a directory
+        if os.path.isdir(input):
+            
+            # This loop traverses the entire directory tree
+            rootDir = input
+            for dirName, subdirList, fileList in os.walk(rootDir):
+                #print('Found directory: %s' % dirName)
+                for fname in fileList:
+                    #print('\t%s' % fname)
+                    # Full path of the file
+                    filePath = dirName + "/" + fname
+                    print filePath
+                    analyzeFile(filePath)
+        
+        else: ## this is a file
+            #print input
+            analyzeFile(input)
+    else:
+        print "Error:", input, "does not exist"
+        exit()
 
     # Print results
     printResults()
