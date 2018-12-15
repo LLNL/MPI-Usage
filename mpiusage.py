@@ -3,6 +3,23 @@
 import sys
 import os
 import re
+import argparse
+
+###############################################################################
+# Output Format
+###############################################################################
+#
+# The output is a json file of the form:
+#
+# {
+#    "LINES": 523,
+#    "OPEN_MP": 7,
+#    "MPI_BCAST": 3,
+#    "MPI_REDUCE": 10,
+# }
+#
+# Attributes use all characters in upper case. Values are integers.
+# By default the output is printed and saved in a file 'output.json'.
 
 ###############################################################################
 # Global variables
@@ -41,14 +58,20 @@ fmpi_call_re = re.compile(r"(?P<call>^[\s]*(call|CALL)[\s]+)"
                                  r"(?P<mpi_call>(mpi|MPI)\_[a-zA-Z_]+)"
                                  r"(?P<mpi_params>\((.)*\))")
 
+# Max size of an MPI Call in terms of lines
 maxBufferSize = 10
+
+outputFileName = "output.json"
+inputPath = "./"
 
 ###############################################################################
 # Main
 ###############################################################################
 
 def main():
-    input = sys.argv[1]
+    parseArgs()
+    #input = sys.argv[1]
+    input = inputPath
     print "Analyzing", input, "..."
     
     # Check if input exist
@@ -81,6 +104,23 @@ def main():
 ###############################################################################
 # Helper Functions
 ###############################################################################
+
+def parseArgs():
+    global inputPath, outputFileName
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("path", type=str,
+                        help="file or directory to analyze")
+    parser.add_argument("-o", "--output", help="name of output file", type=str)
+    args = parser.parse_args()
+
+    inputPath = args.path
+    #print "inputPath", inputPath
+
+    if args.output:
+        outputFileName = args.output
+        #print "output", args.output
+
 
 # This is the main function to analyze a file
 def analyzeFile(filePath):
@@ -165,11 +205,19 @@ def matchMPICall(line):
 
     return mpi_call
 
-
 def printResults():
     print "*** Results ***"
+    fd = open(outputFileName, 'w')
+    fd.write("{\n")
+    print "{"
     for k in MPI_CALLS_TABLE.keys():
-        print k, "=", MPI_CALLS_TABLE[k]
+        line = "  " + "\"" + k + "\"" + ": " + str(MPI_CALLS_TABLE[k]) + ","
+        print line
+        fd.write(line + "\n")
+        
+    print "}"
+    fd.write("}\n")
+    fd.close()
 
 ###############################################################################
 
