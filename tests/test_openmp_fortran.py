@@ -12,7 +12,7 @@ def main():
     jsonOut = json.loads(cmdOutput)
     
     result = "FAILED"
-    if jsonOut['OPENMP'] == 1:
+    if jsonOut['OPENMP'] == 2:
         result = "PASSED"
 
     sys.stdout.write(result+"\n")

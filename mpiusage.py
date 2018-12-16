@@ -30,8 +30,8 @@ import argparse
 # value: integer representing number of times seen
 MPI_CALLS_TABLE = {}
 
-hasOpenMP = False
-hasCUDA = False
+openMPPragmas = 0
+CUDAkernels = 0
 hasOpenCL = False
 hasOpenACC = False
 
@@ -54,6 +54,14 @@ mpi_call_re = re.compile(r"(?P<no_ret_value>^[\s]*)"
                              r"(?P<mpi_call>MPI\_[a-zA-Z_]+)"
                              r"(?P<mpi_params>\((.)*\)[\s]*\;)")
 
+# Matches OpenMP in C
+openmp_c_re = re.compile(r"(?P<openmp>^[\s]*(\#pragma)[\s]+(omp))")
+
+# Matches CUDA __global__ kernel
+cuda_global_kernel_re = re.compile(r"(?P<cuda_kernel>(__global__)[\s]+)")
+# Matches CUDA __device__ kernel
+cuda_device_kernel_re = re.compile(r"(?P<cuda_kernel>(__device__)[\s]+)")
+
 ### Regexp for Fortran ###
 
 fmpi_name_re = re.compile(r"(?P<mpi_name>(mpi|MPI)\_[a-zA-Z_]+)")
@@ -63,19 +71,16 @@ fmpi_call_re = re.compile(r"(?P<call>^[\s]*(call|CALL)[\s]+)"
                                  r"(?P<mpi_call>(mpi|MPI)\_[a-zA-Z_]+)"
                                  r"(?P<mpi_params>\((.)*\))")
 
+openmp_fortran_re = re.compile(r"(?P<openmp>^[\s]*(\!\$(OMP|omp)))")
 
-### Regexp for other languages ###
 
-openmp_c_re = re.compile(r"(?P<openmp>^[\s]*(\#pragma)[\s]+(omp))")
-openmp_fortran_re = re.compile(r"(?P<openmp>^[\s]*(\!\$OMP))")
-
-# Max size of an MPI Call in terms of lines
-maxBufferSize = 10
 
 #### Control variables ####
 outputFileName = None
 inputPath = "./"
 verbose = False
+# Max size of an MPI Call in terms of lines
+maxBufferSize = 10
 
 ###############################################################################
 # Main
@@ -148,6 +153,7 @@ def analyzeFile(filePath):
         
         # Check for languages
         checkOpenMP(fileLines[i])
+        checkCUDA(fileLines[i])
         
         name = matchMPIName(fileLines[i])
         if name != None:
@@ -226,7 +232,7 @@ def matchMPICall(line):
 
 # Print results to stdout
 def printResults():
-    global hasOpenMP, MPI_CALLS_TABLE, outputFileName
+    global MPI_CALLS_TABLE, outputFileName, hasOpenMP, CUDAkernels
     printOut(["*** MPI Usage ***"])
     
     # We save output into a string
@@ -236,10 +242,13 @@ def printResults():
         out = out + line
     
     #print "hasOpenMP", hasOpenMP
-    if hasOpenMP:
-        out = out + '  "OPENMP": 1,\n'
-    else:
-        out = out + '  "OPENMP": 0,\n'
+    #if hasOpenMP:
+    #    out = out + '  "OPENMP": 1,\n'
+    #else:
+    #    out = out + '  "OPENMP": 0,\n'
+
+    out = out + '  "OPENMP": ' + str(openMPPragmas) + ',\n'
+    out = out + '  "CUDA": ' + str(CUDAkernels) + ',\n'
     
     # Lines of code should be the last one 
     out = out + '  "LINES_OF_CODE": 100\n'
@@ -260,7 +269,7 @@ def saveResults(out):
 ###############################################################################
 
 def checkOpenMP(line):
-    global hasOpenMP
+    global openMPPragmas
     
     # Matching C OpenMP
     result1 = openmp_c_re.search(line)
@@ -268,7 +277,16 @@ def checkOpenMP(line):
     result2 = openmp_fortran_re.search(line)
     
     if result1 != None or result2 != None:
-        hasOpenMP = True
+        openMPPragmas = openMPPragmas + 1
+
+def checkCUDA(line):
+    global CUDAkernels
+
+    result1 = cuda_global_kernel_re.search(line)
+    result2 = cuda_device_kernel_re.search(line)
+
+    if result1 != None or result2 != None:
+        CUDAkernels = CUDAkernels + 1
 
 ###############################################################################
 
