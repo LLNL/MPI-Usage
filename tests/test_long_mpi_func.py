@@ -5,15 +5,15 @@ import json
 import sys
 
 def main():
-    sys.stdout.write("Testing return values in C/C++:\t\t")
-    inputFile = "../code_examples/MPI/C_C++/return_values.c"
+    sys.stdout.write("Testing long MPI function:\t\t")
+    inputFile = "../code_examples/MPI/C_C++/lulesh_function.cpp"
     cmd = ["../mpiusage.py", inputFile]
     cmdOutput = subprocess.check_output(cmd)
     jsonOut = json.loads(cmdOutput)
     
-    result = "PASSED"
-    if jsonOut['MPI_BCAST'] != 4:
-        result = "FAILED"
+    result = "FAILED"
+    if jsonOut['MPI_IRECV'] == 26 and jsonOut['MPI_COMM_RANK'] == 1:
+        result = "PASSED"
 
     sys.stdout.write(result+"\n")
     

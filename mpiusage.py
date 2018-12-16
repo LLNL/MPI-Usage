@@ -30,6 +30,11 @@ import argparse
 # value: integer representing number of times seen
 MPI_CALLS_TABLE = {}
 
+hasOpenMP = False
+hasCUDA = False
+hasOpenCL = False
+hasOpenACC = False
+
 ### Regexp for C/C++ ###
 
 mpi_name_re = re.compile(r"(?P<mpi_name>MPI\_[a-zA-Z_]+)")
@@ -57,6 +62,12 @@ fmpi_name_re = re.compile(r"(?P<mpi_name>(mpi|MPI)\_[a-zA-Z_]+)")
 fmpi_call_re = re.compile(r"(?P<call>^[\s]*(call|CALL)[\s]+)"
                                  r"(?P<mpi_call>(mpi|MPI)\_[a-zA-Z_]+)"
                                  r"(?P<mpi_params>\((.)*\))")
+
+
+### Regexp for other languages ###
+
+openmp_c_re = re.compile(r"(?P<openmp>^[\s]*(\#pragma)[\s]+(omp))")
+openmp_fortran_re = re.compile(r"(?P<openmp>^[\s]*(\!\$OMP))")
 
 # Max size of an MPI Call in terms of lines
 maxBufferSize = 10
@@ -134,6 +145,10 @@ def analyzeFile(filePath):
     fd = open(filePath, 'r')
     fileLines = fd.readlines()
     for i in range(len(fileLines)):
+        
+        # Check for languages
+        checkOpenMP(fileLines[i])
+        
         name = matchMPIName(fileLines[i])
         if name != None:
             # We know this is an MPI name.
@@ -211,13 +226,23 @@ def matchMPICall(line):
 
 # Print results to stdout
 def printResults():
+    global hasOpenMP, MPI_CALLS_TABLE, outputFileName
     printOut(["*** MPI Usage ***"])
     
-    # We save output into a string first
+    # We save output into a string
     out = "{\n"
     for k in MPI_CALLS_TABLE.keys():
         line = "  " + "\"" + k + "\"" + ": " + str(MPI_CALLS_TABLE[k]) + ",\n"
-        out = out + line    
+        out = out + line
+    
+    #print "hasOpenMP", hasOpenMP
+    if hasOpenMP:
+        out = out + '  "OPENMP": 1,\n'
+    else:
+        out = out + '  "OPENMP": 0,\n'
+    
+    # Lines of code should be the last one 
+    out = out + '  "LINES_OF_CODE": 100\n'
     out = out + "}"
     
     print out
@@ -230,6 +255,20 @@ def saveResults(out):
     fd.write(out)
     fd.close()
 
+###############################################################################
+# Language detection
+###############################################################################
+
+def checkOpenMP(line):
+    global hasOpenMP
+    
+    # Matching C OpenMP
+    result1 = openmp_c_re.search(line)
+    # Matching Fortran OpenMP
+    result2 = openmp_fortran_re.search(line)
+    
+    if result1 != None or result2 != None:
+        hasOpenMP = True
 
 ###############################################################################
 
