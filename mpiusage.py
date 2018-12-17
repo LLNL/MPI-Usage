@@ -5,17 +5,19 @@ import os
 import re
 import argparse
 
+
 ###############################################################################
 # Output Format
 ###############################################################################
 #
-# The output is a json file of the form:
+# The output is in json format:
 #
 # {
-#    "LINES": 523,
-#    "OPEN_MP": 7,
+#    
+#    "OPENMP": 7,
 #    "MPI_BCAST": 3,
 #    "MPI_REDUCE": 10,
+#    "LINES_OF_CODE": 523,
 # }
 #
 # Attributes use all characters in upper case. Values are integers.
@@ -31,11 +33,13 @@ import argparse
 MPI_CALLS_TABLE = {}
 
 openMPPragmas = 0
+openACCPragmas = 0
 CUDAkernels = 0
 hasOpenCL = False
-hasOpenACC = False
 
+########################
 ### Regexp for C/C++ ###
+########################
 
 mpi_name_re = re.compile(r"(?P<mpi_name>MPI\_[a-zA-Z_]+)")
 
@@ -57,12 +61,17 @@ mpi_call_re = re.compile(r"(?P<no_ret_value>^[\s]*)"
 # Matches OpenMP in C
 openmp_c_re = re.compile(r"(?P<openmp>^[\s]*(\#pragma)[\s]+(omp))")
 
+# Matches OpenACC in C
+openacc_c_re = re.compile(r"(?P<openacc>^[\s]*(\#pragma)[\s]+(acc))")
+
 # Matches CUDA __global__ kernel
 cuda_global_kernel_re = re.compile(r"(?P<cuda_kernel>(__global__)[\s]+)")
 # Matches CUDA __device__ kernel
 cuda_device_kernel_re = re.compile(r"(?P<cuda_kernel>(__device__)[\s]+)")
 
+##########################
 ### Regexp for Fortran ###
+##########################
 
 fmpi_name_re = re.compile(r"(?P<mpi_name>(mpi|MPI)\_[a-zA-Z_]+)")
 
@@ -71,11 +80,16 @@ fmpi_call_re = re.compile(r"(?P<call>^[\s]*(call|CALL)[\s]+)"
                                  r"(?P<mpi_call>(mpi|MPI)\_[a-zA-Z_]+)"
                                  r"(?P<mpi_params>\((.)*\))")
 
+# Matches OpenMP in Fortran
 openmp_fortran_re = re.compile(r"(?P<openmp>^[\s]*(\!\$(OMP|omp)))")
 
+# Matches OpenACC in Fortran
+openacc_fortran_re = re.compile(r"(?P<openacc>^[\s]*(\!\$(ACC|acc)))")
 
-
+###########################
 #### Control variables ####
+###########################
+
 outputFileName = None
 inputPath = "./"
 verbose = False
@@ -153,6 +167,7 @@ def analyzeFile(filePath):
         
         # Check for languages
         checkOpenMP(fileLines[i])
+        checkOpenACC(fileLines[i])
         checkCUDA(fileLines[i])
         
         name = matchMPIName(fileLines[i])
@@ -232,7 +247,7 @@ def matchMPICall(line):
 
 # Print results to stdout
 def printResults():
-    global MPI_CALLS_TABLE, outputFileName, hasOpenMP, CUDAkernels
+    global MPI_CALLS_TABLE, outputFileName, openMPPragmas, openACCPragmas, CUDAkernels
     printOut(["*** MPI Usage ***"])
     
     # We save output into a string
@@ -248,6 +263,7 @@ def printResults():
     #    out = out + '  "OPENMP": 0,\n'
 
     out = out + '  "OPENMP": ' + str(openMPPragmas) + ',\n'
+    out = out + '  "OPENACC": ' + str(openACCPragmas) + ',\n'
     out = out + '  "CUDA": ' + str(CUDAkernels) + ',\n'
     
     # Lines of code should be the last one 
@@ -278,6 +294,17 @@ def checkOpenMP(line):
     
     if result1 != None or result2 != None:
         openMPPragmas = openMPPragmas + 1
+
+def checkOpenACC(line):
+    global openACCPragmas
+    
+    # Matching C OpenACC
+    result1 = openacc_c_re.search(line)
+    # Matching Fortran OpenACC
+    result2 = openacc_fortran_re.search(line)
+    
+    if result1 != None or result2 != None:
+        openACCPragmas = openACCPragmas + 1
 
 def checkCUDA(line):
     global CUDAkernels
