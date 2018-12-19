@@ -4,6 +4,7 @@ import sys
 import os
 import re
 import argparse
+import subprocess
 
 
 ###############################################################################
@@ -34,8 +35,14 @@ MPI_CALLS_TABLE = {}
 
 openMPPragmas = 0
 openACCPragmas = 0
-CUDAkernels = 0
-hasOpenCL = False
+CUDASymbols = 0
+OpenCLSymbols = 0
+
+c_lines = 0
+cpp_lines = 0
+c_cpp_header_lines = 0
+fortran_lines = 0
+total_lines_of_code = 0
 
 ########################
 ### Regexp for C/C++ ###
@@ -69,6 +76,11 @@ cuda_global_kernel_re = re.compile(r"(?P<cuda_kernel>(__global__)[\s]+)")
 # Matches CUDA __device__ kernel
 cuda_device_kernel_re = re.compile(r"(?P<cuda_kernel>(__device__)[\s]+)")
 
+# Matches OpenCL __global
+opencl_global_re = re.compile(r"(?P<opencl_global>(__global)[\s]+)")
+# Matches OpenCL __kernel
+opencl_kernel_re = re.compile(r"(?P<cuda_kernel>(__kernel)[\s]+)")
+
 ##########################
 ### Regexp for Fortran ###
 ##########################
@@ -85,6 +97,17 @@ openmp_fortran_re = re.compile(r"(?P<openmp>^[\s]*(\!\$(OMP|omp)))")
 
 # Matches OpenACC in Fortran
 openacc_fortran_re = re.compile(r"(?P<openacc>^[\s]*(\!\$(ACC|acc)))")
+
+#######################
+### Regexp for Cloc ###
+#######################
+
+cloc_c_re = re.compile(r"(^C[\s]+[0-9]+[\s]+[0-9]+[\s]+[0-9]+[\s]+[0-9]+)")
+cloc_cpp_re = re.compile(r"(^C\+\+[\s]+[0-9]+[\s]+[0-9]+[\s]+[0-9]+[\s]+[0-9]+)")
+cloc_c_cpp_header_re = re.compile(r"(^(C\/C\+\+ Header)[\s]+[0-9]+[\s]+[0-9]+[\s]+[0-9]+[\s]+[0-9]+)")
+cloc_fortran_re = re.compile(r"(^(Fortran [0-9]+)[\s]+[0-9]+[\s]+[0-9]+[\s]+[0-9]+[\s]+[0-9]+)")
+
+
 
 ###########################
 #### Control variables ####
@@ -128,6 +151,9 @@ def main():
         print "Error:", input, "does not exist"
         exit()
 
+    # cloc statistics
+    getClocStatistics(input)
+
     # Print results
     printResults()
 
@@ -169,6 +195,7 @@ def analyzeFile(filePath):
         checkOpenMP(fileLines[i])
         checkOpenACC(fileLines[i])
         checkCUDA(fileLines[i])
+        checkOpenCL(fileLines[i])
         
         name = matchMPIName(fileLines[i])
         if name != None:
@@ -247,7 +274,7 @@ def matchMPICall(line):
 
 # Print results to stdout
 def printResults():
-    global MPI_CALLS_TABLE, outputFileName, openMPPragmas, openACCPragmas, CUDAkernels
+    global MPI_CALLS_TABLE, outputFileName, openMPPragmas, openACCPragmas, CUDAkernels, c_lines, cpp_lines, c_cpp_header_lines, fortran_lines, total_lines_of_code
     printOut(["*** MPI Usage ***"])
     
     # We save output into a string
@@ -255,19 +282,19 @@ def printResults():
     for k in MPI_CALLS_TABLE.keys():
         line = "  " + "\"" + k + "\"" + ": " + str(MPI_CALLS_TABLE[k]) + ",\n"
         out = out + line
-    
-    #print "hasOpenMP", hasOpenMP
-    #if hasOpenMP:
-    #    out = out + '  "OPENMP": 1,\n'
-    #else:
-    #    out = out + '  "OPENMP": 0,\n'
 
     out = out + '  "OPENMP": ' + str(openMPPragmas) + ',\n'
     out = out + '  "OPENACC": ' + str(openACCPragmas) + ',\n'
-    out = out + '  "CUDA": ' + str(CUDAkernels) + ',\n'
+    out = out + '  "CUDA": ' + str(CUDASymbols) + ',\n'
+    out = out + '  "OPENCL": ' + str(OpenCLSymbols) + ',\n'
     
-    # Lines of code should be the last one 
-    out = out + '  "LINES_OF_CODE": 100\n'
+    out = out + '  "C_LINES": ' + str(c_lines) + ',\n'
+    out = out + '  "CPP_LINES": ' + str(cpp_lines) + ',\n'
+    out = out + '  "C_CPP_H_LINES": ' + str(c_cpp_header_lines) + ',\n'
+    out = out + '  "FORTRAN_LINES": ' + str(fortran_lines) + ',\n'
+    
+    # For consistency, let's make LINES_OF_CODE the last one 
+    out = out + '  "LINES_OF_CODE": ' + str(total_lines_of_code) + '\n'
     out = out + "}"
     
     print out
@@ -307,13 +334,51 @@ def checkOpenACC(line):
         openACCPragmas = openACCPragmas + 1
 
 def checkCUDA(line):
-    global CUDAkernels
+    global CUDASymbols
 
     result1 = cuda_global_kernel_re.search(line)
     result2 = cuda_device_kernel_re.search(line)
 
     if result1 != None or result2 != None:
-        CUDAkernels = CUDAkernels + 1
+        CUDASymbols = CUDASymbols + 1
+
+def checkOpenCL(line):
+    global OpenCLSymbols
+    
+    result1 = opencl_global_re.search(line)
+    result2 = opencl_kernel_re.search(line)
+    
+    if result1 != None or result2 != None:
+        OpenCLSymbols = OpenCLSymbols + 1
+
+###############################################################################
+# Cloc calling and parsing
+###############################################################################
+
+def getClocStatistics(input):
+    global c_lines, cpp_lines, c_cpp_header_lines, fortran_lines, total_lines_of_code
+    
+    printOut(["Calling cloc..."])
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    cmd = [dir_path+"/cloc", input]
+    cmdOutput = subprocess.check_output(cmd)
+    
+    for line in cmdOutput.split("\n"):
+        test_c = cloc_c_re.search(line)
+        test_cpp = cloc_cpp_re.search(line)
+        test_c_cpp_header = cloc_c_cpp_header_re.search(line)
+        test_fortran = cloc_fortran_re.search(line)
+    
+        if test_c != None:
+            c_lines = int(line.split()[-1:][0])
+        elif test_cpp != None:
+            cpp_lines = int(line.split()[-1:][0])
+        elif test_c_cpp_header != None:
+            c_cpp_header_lines = int(line.split()[-1:][0])
+        elif test_fortran != None:
+            fortran_lines = fortran_lines + int(line.split()[-1:][0])
+        elif "SUM:" in line:
+            total_lines_of_code = int(line.split()[-1:][0])
 
 ###############################################################################
 
