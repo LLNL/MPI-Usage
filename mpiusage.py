@@ -13,16 +13,31 @@ import subprocess
 #
 # The output is in json format:
 #
-# {
-#    
-#    "OPENMP": 7,
-#    "MPI_BCAST": 3,
-#    "MPI_REDUCE": 10,
-#    "LINES_OF_CODE": 523,
-# }
+#{
+#  "MPI_COMM_SIZE": 3,
+#  "MPI_REDUCE": 3,
+#  "MPI_WAITALL": 2,
+#  "MPI_WAIT": 116,
+#  "MPI_COMM_RANK": 15,
+#  "MPI_ALLREDUCE": 3,
+#  "MPI_INIT": 3,
+#  "MPI_FINALIZE": 3,
+#  "MPI_ABORT": 12,
+#  "MPI_IRECV": 26,
+#  "MPI_ISEND": 52,
+#  "OPENMP": 0,
+#  "OPENACC": 0,
+#  "CUDA": 168,
+#  "OPENCL": 0,
+#  "C_LINES": 0,
+#  "CPP_LINES": 297,
+#  "C_CPP_H_LINES": 365,
+#  "FORTRAN_LINES": 0,
+#  "LINES_OF_CODE": 14574
+#}
+#
 #
 # Attributes use all characters in upper case. Values are integers.
-# By default the output is printed and saved in a file 'output.json'.
 
 ###############################################################################
 # Global variables

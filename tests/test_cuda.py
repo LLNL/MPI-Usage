@@ -18,7 +18,7 @@ def main():
     if jsonOut['CUDA'] != 1:
         result = test_config.failed
     
-    inputFile = "../code_examples/CUDA/comd_cuda_kernel.h"
+    inputFile = "../code_examples/CUDA/small_cuda_kernel.h"
     cmd = ["../mpiusage.py", inputFile]
     cmdOutput = subprocess.check_output(cmd)
     jsonOut = json.loads(cmdOutput)
