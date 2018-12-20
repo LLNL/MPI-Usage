@@ -39,7 +39,7 @@ optional arguments:
 `MPI Usage` will by default output statistics in a json format in standard output:
 
 ```sh
-[lagunaperalt1@unsullied:code] $ ./mpiusage.py /path/lulesh/src/
+$ ./mpiusage.py /path/lulesh/src/
 {
   "MPI_COMM_SIZE": 3,
   "MPI_REDUCE": 3,
