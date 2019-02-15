@@ -83,7 +83,8 @@ mpi_call_re = re.compile(r"(?P<no_ret_value>^[\s]*)"
 # Matches MPI symbol macro definition: "#define MPI_Send  hypre_MPI_Send"
 mpi_macro_re = re.compile(r"(?P<no_ret_value>^[\s]*)"
                          r"(?P<macro>#define[\s]+)"
-                         r"(?P<mpi_symbol>MPI\_[a-zA-Z_]+[\s]+)")
+                         r"(?P<mpi_symbol>MPI\_[a-zA-Z_]+)"
+                         r"(?P<space>[\s]+)")
 
 # Matches OpenMP in C
 openmp_c_re = re.compile(r"(?P<openmp>^[\s]*(\#pragma)[\s]+(omp))")
