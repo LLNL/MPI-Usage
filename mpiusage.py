@@ -80,6 +80,11 @@ mpi_call_re = re.compile(r"(?P<no_ret_value>^[\s]*)"
                              r"(?P<mpi_call>MPI\_[a-zA-Z_]+)"
                              r"(?P<mpi_params>\((.)*\)[\s]*\;)")
 
+# Matches MPI symbol macro definition: "#define MPI_Send  hypre_MPI_Send"
+mpi_macro_re = re.compile(r"(?P<no_ret_value>^[\s]*)"
+                         r"(?P<macro>#define[\s]+)"
+                         r"(?P<mpi_symbol>MPI\_[a-zA-Z_]+[\s]+)")
+
 # Matches OpenMP in C
 openmp_c_re = re.compile(r"(?P<openmp>^[\s]*(\#pragma)[\s]+(omp))")
 
@@ -271,9 +276,12 @@ def matchMPICall(line):
     result1 = mpi_call_re.search(line)
     result2 = mpi_call_ret_re.search(line)
     result3 = mpi_call_ret_def_re.search(line)
-    
+
     # Matching for Fortran calls
     result4 = fmpi_call_re.search(line)
+    
+    # Matching macro definitions
+    result5 = mpi_macro_re.search(line)
     
     mpi_call = None
     if result1 != None:
@@ -284,6 +292,8 @@ def matchMPICall(line):
         mpi_call = result3.group('mpi_call')
     elif result4 != None:
         mpi_call = result4.group('mpi_call')
+    elif result5 != None:
+        mpi_call = "X_" + result5.group('mpi_symbol')
 
     return mpi_call
 
