@@ -86,6 +86,19 @@ mpi_macro_re = re.compile(r"(?P<no_ret_value>^[\s]*)"
                          r"(?P<mpi_symbol>MPI\_[a-zA-Z_]+)"
                          r"(?P<space>[\s]+)")
 
+# This case is found in an application that makes calls to MPI using macros:
+#
+# #define HEMELB_MPI_CALL( mpiFunc, args ) \
+# { \
+# int _check_result = mpiFunc args; \
+# if (_check_result != MPI_SUCCESS) \
+# throw ::hemelb::net::MpiError(#mpiFunc, _check_result, __FILE__, __LINE__); \
+# }
+#
+mpi_macro_wrapper_re = re.compile(r"(?P<no_ret_value>^[\s]*)"
+                          r"(?P<mpi_symbol>MPI\_[a-zA-Z_]+)"
+                          r"(?P<comma>[\s]*[,][\s]*)")
+
 # Matches OpenMP in C
 openmp_c_re = re.compile(r"(?P<openmp>^[\s]*(\#pragma)[\s]+(omp))")
 
@@ -283,6 +296,7 @@ def matchMPICall(line):
     
     # Matching macro definitions
     result5 = mpi_macro_re.search(line)
+    result6 = mpi_macro_wrapper_re.search(line)
     
     mpi_call = None
     if result1 != None:
@@ -295,6 +309,8 @@ def matchMPICall(line):
         mpi_call = result4.group('mpi_call')
     elif result5 != None:
         mpi_call = "X_" + result5.group('mpi_symbol')
+    elif result6 != None:
+        mpi_call = "X_" + result6.group('mpi_symbol')
 
     return mpi_call
 
