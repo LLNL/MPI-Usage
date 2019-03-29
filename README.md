@@ -68,3 +68,10 @@ $ ./mpiusage.py /path/lulesh/src/
 
 You can specify an output file using the `-o`
 
+## License
+
+MPI Usage is distributed under the terms of GNU General Public License v2.0 license.
+
+See LICENSE and NOTICE for details.
+
+LLNL-CODE-770417
